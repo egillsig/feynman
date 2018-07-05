@@ -1,0 +1,10 @@
+def l = 20 m ;;
+def t = 2 s ;;
+def v = 10 m / s ;;
+def ma = 1 kg ;;
+def F = 5 N ;;
+
+# all dimensionality errors
+l + t ;;
+def f2 = m v : force ;;
+def f3 = v/t : force ;;

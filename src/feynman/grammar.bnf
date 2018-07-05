@@ -1,0 +1,46 @@
+program         : statement (<';;'> statement)* <';;'>?
+
+<statement>     : definition | tl-expression
+
+<definition>    : def | func-def
+def             : <'def'> name <'='> tl-expression (<':'> type-expr)?
+func-def        : <'def'> name <'['> arg-list <']'> (<':'> type-expr)? <'='> tl-expression
+
+type-expr       : name
+                | type-expr '*' type-expr
+                | type-expr '/' type-expr
+                | type-expr '^' number
+
+arg-list        : arg-name (<','> arg-name)* | epsilon
+<arg-name>      : name (<':'> type-expr)?
+
+<tl-expression> : function | if | let | expr
+
+function        : <'fn'> <'['> arg-list <']'> tl-expression
+if              : <'if'> tl-expression <'then'> tl-expression <'else'> tl-expression
+let             : <'let'> name <'='> tl-expression <'in'> tl-expression
+
+expr            : a_expr (logic-op a_expr)?
+logic-op        : '<' | '>' | '<=' | '>=' | '==' | '!=' | '&' | '|'
+
+a_expr          : m_expr | a_expr a_op m_expr
+a_op            : '+' | '-'
+
+m_expr          : first_u_expr | m_expr m_op u_expr
+m_op            : '*' | '/' | epsilon
+
+(* Unary +/- operators can only appear as the first term in an m_expr *)
+first_u_expr    : ('+' | '-')? u_expr
+u_expr          : power | '!' u_expr
+
+power           : primary ('^' first_u_expr)?
+
+primary         : name | number | boolean | apply | <'('> tl-expression <')'> 
+
+apply           : primary <'['> argument-list <']'>
+argument-list : (expr (<','> argument-list)*)?
+
+name            : !keyword #'[a-zA-Z_][a-zA-Z0-9_]*'
+number          : #'\d+'
+boolean         : 'True' | 'False'
+keyword         : 'def' | 'fn' | 'if' | 'then' | 'else' | 'let' | 'in'
