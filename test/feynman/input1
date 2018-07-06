@@ -10,7 +10,7 @@
 # unit N  : force
 #
 # unit x : D could be syntactic sugar for
-# def x = 1 : D
+# def x = 1 : D (this would not type check)
 # Need means of combination for dimension names (alias above)
 # Not really explicit need to define dimensions
 # But some form of structured dimension expressions

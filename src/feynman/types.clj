@@ -116,10 +116,6 @@
                                  :assignment (s/map-of string? ::type)))
         :ret ::type)
 
-(defn apply-substitution-assignment
-  [s assignment]
-  (reduce-kv #(assoc %1 %2 (apply-substitution-type-expr s %3)) {} assignment))
-
 (defn apply-substitution-type-expr
   [s arg]
   (match [arg]
@@ -134,11 +130,16 @@
     [([:product & r] :seq)] (apply vector
                                    :product
                                    (map (partial apply-substitution s) r))
-    [[:forall free-vars expr]] [:forall free-vars (apply-substitution s expr)]))
+    [[:forall free-vars expr]] [:forall free-vars
+                                (apply-substitution (apply dissoc s free-vars) expr)]))
 
 (s/fdef apply-substitution-type-expr
         :args (s/cat :subs ::substitution :expr ::type)
         :ret ::type)
+
+(defn apply-substitution-assignment
+  [s assignment]
+  (reduce-kv #(assoc %1 %2 (apply-substitution-type-expr s %3)) {} assignment))
 
 (defn apply-substitution
   [s arg]
@@ -147,6 +148,18 @@
     (apply-substitution-type-expr s arg)))
 
 ;;; Unification
+(declare unify)
+
+(defn unify-products
+  [r1 r2 state]
+  (reduce (fn [s [t1 t2]]
+            (when-let [ss (unify
+                           (apply-substitution s t1)
+                           (apply-substitution s t2)
+                           state)]
+              (merge s ss)))
+          {}
+          (map vector r1 r2)))
 
 (defn unify
   [t1 t2 state]
@@ -158,9 +171,11 @@
     [[:function tau-1 tau-2]
      [:function tau-3 tau-4]] (let [s1 (unify tau-1 tau-3 state)
                                     s2 (unify tau-2 tau-4 state)]
-                                (merge s1 s2))
+                                (when (and s1 s2)
+                                  (merge s1 s2)))
     [[:dimension d1]  [:dimension d2]] (dim/unify d1 d2 state)
-    :else nil))
+    [[:product & r-1]
+     [:product & r-2]] (unify-products r-1 r-2 state)))
 
 (s/fdef unify
         :args (s/cat :type1 ::mono-type :type2 ::mono-type)

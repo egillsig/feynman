@@ -1,11 +1,18 @@
+(* Possible additions:
+   * Unit definitions, aliases, etc. 
+   * Floating point/rational numbers
+   * literals for tuples, lists, vectors ...
+   * type classes *)
+
 program         : statement (<';;'> statement)* <';;'>?
 
-<statement>     : definition | tl-expression
+<statement>     : <'def'> definition | tl-expression
 
 <definition>    : def | func-def
-def             : <'def'> name <'='> tl-expression (<':'> type-expr)?
-func-def        : <'def'> name <'['> arg-list <']'> (<':'> type-expr)? <'='> tl-expression
+def             : name (<':'> type-expr)? <'='> tl-expression
+func-def        : name <'['> arg-list <']'> (<':'> type-expr)? <'='> tl-expression
 
+(* Is this all we want to be able to express in type expressions? *)
 type-expr       : name
                 | type-expr '*' type-expr
                 | type-expr '/' type-expr
@@ -18,6 +25,9 @@ arg-list        : arg-name (<','> arg-name)* | epsilon
 
 function        : <'fn'> <'['> arg-list <']'> tl-expression
 if              : <'if'> tl-expression <'then'> tl-expression <'else'> tl-expression
+
+(* let definitions should be identical to other definitions, this calls for
+   change in inference mechanism *)
 let             : <'let'> name <'='> tl-expression <'in'> tl-expression
 
 expr            : a_expr (logic-op a_expr)?
@@ -33,6 +43,7 @@ m_op            : '*' | '/' | epsilon
 first_u_expr    : ('+' | '-')? u_expr
 u_expr          : power | '!' u_expr
 
+(* The power operator will not be bossible to type, should remove *)
 power           : primary ('^' first_u_expr)?
 
 primary         : name | number | boolean | apply | <'('> tl-expression <')'> 

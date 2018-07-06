@@ -135,4 +135,42 @@
       (is (= (unify [:type-variable 1] [:type-variable 1] (new-state)) {}))
 
       (is (= (unify [:type-variable 1] [:type-variable 2] (new-state))
-             {[:type-variable 1] [:type-variable 2]})))))
+             {[:type-variable 1] [:type-variable 2]}))
+
+      (is (= (unify [:type-variable 1] [:dimension {[:dim-variable 1] 1}]
+                    (state/create-state :dims 1 :types 1))
+             {[:type-variable 1] [:dimension {[:dim-variable 1] 1}]}))
+
+      (is (= (unify-products
+              [[:dimension {[:dim-variable 1] 1}] [:dimension {[:dim-variable 2] 1}]]
+              [[:type-variable 1] [:type-variable 1]]
+              (state/create-state :dims 2 :types 1))
+             {[:type-variable 1] [:dimension {[:dim-variable 1] 1}]
+              [:dim-variable 1] {[:dim-variable 2] 1}}))
+
+      ;; d_1 x d_2 -> d_1*d_2
+      ;; a_1 x a_1 -> a_2
+      (is (let [s (unify [:function [:product
+                                     [:dimension {[:dim-variable 1] 1}]
+                                     [:dimension {[:dim-variable 2] 1}]]
+                          [:dimension {[:dim-variable 1] 1 [:dim-variable 2] 1}]]
+                         [:function [:product [:type-variable 1] [:type-variable 1]]
+                          [:type-variable 2]]
+                         (state/create-state :dims 2 :types 2))]
+            (= (apply-substitution s [:type-variable 2])
+               [:dimension {[:dim-variable 2] 2}])))
+
+      (is (= nil
+             (unify [:product [:dimension {"L" 1}] [:dimension {"T" 1}]]
+                    [:product
+                     [:dimension {[:dim-variable 1] 1}]
+                     [:dimension {[:dim-variable 1] 1}]]
+                    (state/create-state :dims 1))))
+      (is (= nil
+             (unify [:function [:product [:dimension {"L" 1}] [:dimension {"T" 1}]]
+                     [:type-variable 1]]
+                    [:function [:product
+                                [:dimension {[:dim-variable 1] 1}]
+                                [:dimension {[:dim-variable 1] 1}]]
+                     [:dimension {[:dim-variable 1] 1}]]
+                    (state/create-state :dims 1 :types 1)))))))
