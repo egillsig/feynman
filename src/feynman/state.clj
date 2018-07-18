@@ -13,3 +13,6 @@
   [:dim-variable (-> s
                      (swap! #(vector (first %)  (+ 1 (second %))))
                      second)])
+
+(defn new-type-variable [] (gensym "alpha_"))
+(defn new-dimension-variable [] (gensym "d_"))

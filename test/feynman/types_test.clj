@@ -1,176 +1,148 @@
 (ns feynman.types-test
   (:require [clojure.test :refer :all]
-            [feynman.types :refer :all]
-            [feynman.state :as state]))
+            [feynman.env :as env]
+            [feynman.state :as state]
+            [feynman.types :refer :all]))
 
 (deftest helpers
-  (testing "type-contains?"
-    (is (type-contains? [:type-variable 1] [:type-variable 1]))
-    (is (not (type-contains? [:type-variable 1] [:type-variable 2])))
-    (is (type-contains? [:function [:type-variable 1] [:type-variable 2]]
-                        [:type-variable 1]))
-    (is (type-contains? [:product [:type-variable 1] [:bool] [:type-variable 2]]
-                        [:type-variable 2])))
 
-  (testing "free-variables"
-    (is (= (free-variables [:function [:type-variable 1] [:type-variable 2]])
-           [[:type-variable 1] [:type-variable 2]]))
-    (is (= (free-variables [:dimension {[:dim-variable 1] 1}])
-           [[:dim-variable 1]]))
-    (is (= (free-variables [:product [:bool] [:dimension {}] [:type-variable 1]])
-           [[:type-variable 1]]))
-    (is (= (free-variables [:product
-                            [:dimension {[:dim-variable 1] 1}]
-                            [:type-variable 1]])
-           [[:dim-variable 1] [:type-variable 1]])))
+  (testing "free-vars"
+    (is (= (free-vars [:function 'a 'b]) #{'a 'b}))
+    (is (= (free-vars [:dimension {'d 1}]) #{'d}))
+    (is (= (free-vars [:product :type [:dimension {}] 'a]) #{'a}))
+    (is (= (free-vars [:product [:dimension {'d 1}] 'a]) #{'d 'a})))
 
   (testing "replace-variable"
-    (is (= (replace-variable [:type-variable 1] [:type-variable 1] [:type-variable 2])
-           [:type-variable 2]))
+    (is (= (replace-variable 'a 'a 'b) 'b))
 
     ;; Note that replace-variable always returns legal type expression
-    ;; (:dim-variable must be wraped in :dimension in return value, not in arg)
-    (is (= (replace-variable [:type-variable 1] [:type-variable 1] [:dim-variable 1])
-           [:dimension {[:dim-variable 1] 1}]))
+    ;; (:dim-variable must be wrapped in :dimension in return value, not in arg)
+    (is (= (replace-variable 'a 'a 'd__1)
+           [:dimension {'d__1 1}]))
 
-    (is (= (replace-variable [:function [:type-variable 1] [:type-variable 2]]
-                             [:type-variable 2]
-                             [:dim-variable 1])
-           [:function [:type-variable 1] [:dimension {[:dim-variable 1] 1}]]))
-    (is (= (replace-variable [:product
-                              [:type-variable 1]
-                              [:dimension {[:dim-variable 1] 1}]]
-                             [:type-variable 1]
-                             [:dim-variable 1])
+    (is (= (replace-variable [:function 'a 'b] 'b 'd__1)
+           [:function 'a [:dimension {'d__1 1}]]))
+    (is (= (replace-variable [:product 'a [:dimension {'d__1 1}]]
+                             'a
+                             'd__1)
            [:product
-            [:dimension {[:dim-variable 1] 1}]
-            [:dimension {[:dim-variable 1] 1}]]))
-    (is (= (replace-variable [:dimension
-                              {[:dim-variable 1] 3
-                               [:dim-variable 2] 4
-                               "L" 2}]
-                             [:dim-variable 1]
-                             [:dim-variable 2])
-           [:dimension {[:dim-variable 2] 7 "L" 2}]))))
+            [:dimension {'d__1 1}]
+            [:dimension {'d__1 1}]]))
+    (is (= (replace-variable [:dimension {'d__1 3 'd__2 4 "L" 2}]
+                             'd__1
+                             'd__2)
+           [:dimension {'d__2 7 "L" 2}]))))
 
 (deftest infer-helpers
 
-  (testing "make-polymorphic"
-    (is (= (make-polymorphic [:type-variable 1] {})
-           [:forall [[:type-variable 1]] [:type-variable 1]]))
+  (testing "Generalize"
+    (is (= (generalize 'a {})
+           [:forall #{'a} 'a]))
 
-    (is (= (make-polymorphic [:function [:type-variable 1] [:type-variable 2]] {})
-           [:forall [[:type-variable 1] [:type-variable 2]]
-            [:function [:type-variable 1] [:type-variable 2]]]))
+    (is (= (generalize [:function 'a 'b] {})
+           [:forall #{'a 'b}
+            [:function 'a 'b]]))
 
-    (is (= (make-polymorphic [:function
-                              [:dimension {"L" 1 [:dim-variable 1] 2}]
-                              [:type-variable 1]] {})
-           [:forall [[:dim-variable 1] [:type-variable 1]]
-            [:function
-             [:dimension {"L" 1 [:dim-variable 1] 2}]
-             [:type-variable 1]]])))
+    (is (= (generalize [:function [:dimension {"L" 1 'd 2}] 'a] {})
+           [:forall #{'d 'a}
+            [:function [:dimension {"L" 1 'd 2}] 'a]])))
 
-  (testing "refresh-variables"
-    (let [state #(state/create-state :dims 2 :types 2)]
-      (is (= (refresh-variables
-              [:forall [[:type-variable 1]] [:type-variable 1]]
-              (state))
-             [:type-variable 3]))
+  (testing "instantiate"
+    (is (variable? (instantiate [:forall #{'a} 'a])))
 
-      (is (= (refresh-variables
-              [:forall [[:dim-variable 1]] [:dimension {[:dim-variable 1] 2}]]
-              (state))
-             [:dimension {[:dim-variable 3] 2}]))
-      (is (= (refresh-variables
-              [:forall [[:type-variable 1] [:type-variable 2]]
-               [:function [:type-variable 1] [:type-variable 2]]] (state))
-             [:function [:type-variable 3] [:type-variable 4]])))))
+    (is (dim-type? (instantiate
+                    [:forall #{'d__1} [:dimension {'d__1 2}]])))
+
+    (is (compound-type? (instantiate [:forall #{'a 'b} [:function 'a 'b]])))
+
+    (is (compound-type? (instantiate
+                         [:forall #{'d1 'd2}
+                          [:function [:product [:dimension {'d1 1}] [:dimension {'d2 1}]]
+                           [:dimension {'d1 1 'd2 1}]]])))))
 
 (deftest substitutions
 
-  (testing "apply-substitution-type-expr"
-    (let [s {[:dim-variable 1] {"L" 2} ; Note dim-variables map to vectors, not dims
-             [:type-variable 1] [:bool]
-             [:type-variable 2] [:type-variable 1]}] ; (not sure if this is a good idea)
+  (testing "apply-substitution"
+    (let [s {'d__1 {"L" 2} ; Note dim-variables map to vectors, not dims
+             'a :type
+             'b 'a}] ; (not sure if this is a good idea)
 
-      (is (= (apply-substitution-type-expr s [:type-variable 1])
-             [:bool]))
+      (is (= (apply-substitution s 'a) :type))
 
-      (is (= (apply-substitution-type-expr s [:dimension {[:dim-variable 1] 2}])
+      (is (= (apply-substitution s [:dimension {'d__1 2}])
              [:dimension {"L" 4}]))
 
-      (is (= (apply-substitution-type-expr s [:function
-                                              [:type-variable 1]
-                                              [:dimension {[:dim-variable 1] 2}]])
-             [:function [:bool] [:dimension {"L" 4}]]))
+      (is (= (apply-substitution s [:function
+                                    'a
+                                    [:dimension {'d__1 2}]])
+             [:function :type [:dimension {"L" 4}]]))
 
-      (is (= (apply-substitution-type-expr
-              s
-              [:product [:type-variable 1] [:type-variable 2]])
-             [:product [:bool] [:bool]]))
+      (is (= (apply-substitution s [:product 'a 'b])
+             [:product :type :type]))
 
-      (is (= (apply-substitution-type-expr s [:type-variable 3])
-             [:type-variable 3]))))
+      (is (= (apply-substitution s 'c) 'c))))
 
-  (testing "apply-substitution-assignment"
-    (let [s {[:dim-variable 1] {"M" 3}
-             [:type-variable 1] [:function [:bool] [:bool]]}
-          a {"foo" [:dimension {[:dim-variable 1] 1}]
-             "bar" [:type-variable 1]}]
+  (testing "apply-substitution"
+    (let [s {'d__1 {"M" 3}
+             'a [:function :A :B]}
+          a {"foo" [:dimension {'d__1 1}]
+             "bar" 'a}
+          product {"*" [:forall ['d__1 'd__2]
+                        [:function [:product
+                                    [:dimension {'d__1 1}]
+                                    [:dimension {'d__2 1}]]
+                         [:dimension {'d__1 1 'd__2 1}]]]}]
 
-      (is (= (apply-substitution-assignment s a)
-             {"foo" [:dimension {"M" 3}] "bar" [:function [:bool] [:bool]]}))
+      (is (= (apply-substitution s a)
+             {"foo" [:dimension {"M" 3}] "bar" [:function :A :B]}))
 
-      (is (= (apply-substitution-assignment s {}) {}))
+      (is (= (apply-substitution s {}) {}))
 
-      (is (= (apply-substitution-assignment {} a) a)))))
+      (is (= (apply-substitution {} a) a))
+
+      (is (= (apply-substitution
+              {}
+              product)
+             product)))))
 
 (deftest unification
   (let [new-state #(state/create-state)]
 
     (testing "unify"
-      (is (= (unify [:bool] [:bool] (new-state)) {}))
+      (is (= (unify :type :type) {}))
 
-      (is (= (unify [:type-variable 1] [:type-variable 1] (new-state)) {}))
+      (is (= (unify 'a 'a) {}))
 
-      (is (= (unify [:type-variable 1] [:type-variable 2] (new-state))
-             {[:type-variable 1] [:type-variable 2]}))
+      (is (= (unify 'a 'b) {'a 'b}))
 
-      (is (= (unify [:type-variable 1] [:dimension {[:dim-variable 1] 1}]
-                    (state/create-state :dims 1 :types 1))
-             {[:type-variable 1] [:dimension {[:dim-variable 1] 1}]}))
+      (is (= (unify 'a [:dimension {'d__1 1}])
+             {'a [:dimension {'d__1 1}]}))
 
-      (is (= (unify-products
-              [[:dimension {[:dim-variable 1] 1}] [:dimension {[:dim-variable 2] 1}]]
-              [[:type-variable 1] [:type-variable 1]]
-              (state/create-state :dims 2 :types 1))
-             {[:type-variable 1] [:dimension {[:dim-variable 1] 1}]
-              [:dim-variable 1] {[:dim-variable 2] 1}}))
+      (is (= (unify
+              [:product [:dimension {'d__1 1}] [:dimension {'d__2 1}]]
+              [:product 'a 'a])
+             {'a [:dimension {'d__1 1}]
+              'd__1 {'d__2 1}}))
 
       ;; d_1 x d_2 -> d_1*d_2
       ;; a_1 x a_1 -> a_2
       (is (let [s (unify [:function [:product
-                                     [:dimension {[:dim-variable 1] 1}]
-                                     [:dimension {[:dim-variable 2] 1}]]
-                          [:dimension {[:dim-variable 1] 1 [:dim-variable 2] 1}]]
-                         [:function [:product [:type-variable 1] [:type-variable 1]]
-                          [:type-variable 2]]
-                         (state/create-state :dims 2 :types 2))]
-            (= (apply-substitution s [:type-variable 2])
-               [:dimension {[:dim-variable 2] 2}])))
+                                     [:dimension {'d__1 1}]
+                                     [:dimension {'d__2 1}]]
+                          [:dimension {'d__1 1 'd__2 1}]]
+                         [:function [:product 'a 'a] 'b])]
+            (= (apply-substitution s 'b)
+               [:dimension {'d__2 2}])))
 
       (is (= nil
              (unify [:product [:dimension {"L" 1}] [:dimension {"T" 1}]]
-                    [:product
-                     [:dimension {[:dim-variable 1] 1}]
-                     [:dimension {[:dim-variable 1] 1}]]
-                    (state/create-state :dims 1))))
+                    [:product [:dimension {'d__1 1}] [:dimension {'d__1 1}]])))
       (is (= nil
-             (unify [:function [:product [:dimension {"L" 1}] [:dimension {"T" 1}]]
-                     [:type-variable 1]]
+             (unify [:function [:product
+                                [:dimension {"L" 1}]
+                                [:dimension {"T" 1}]]
+                     'a]
                     [:function [:product
-                                [:dimension {[:dim-variable 1] 1}]
-                                [:dimension {[:dim-variable 1] 1}]]
-                     [:dimension {[:dim-variable 1] 1}]]
-                    (state/create-state :dims 1 :types 1)))))))
+                                [:dimension {'d__1 1}]
+                                [:dimension {'d__1 1}]]
+                     [:dimension {'d__1 1}]]))))))

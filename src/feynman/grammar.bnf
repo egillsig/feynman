@@ -1,57 +1,90 @@
 (* Possible additions:
    * Unit definitions, aliases, etc. 
-   * Floating point/rational numbers
    * literals for tuples, lists, vectors ...
-   * type classes *)
+   * type definitions and type classes *)
 
-program         : statement (<';;'> statement)* <';;'>?
+<program>        : statement (<';;'> statement)* <';;'>?
 
-<statement>     : <'def'> definition | tl-expression
+<statement>      : <'def'> definition | tl-expression | unit-def
 
-<definition>    : def | func-def
-def             : name (<':'> type-expr)? <'='> tl-expression
-func-def        : name <'['> arg-list <']'> (<':'> type-expr)? <'='> tl-expression
+(* TODO derived/compound units *)
+unit-def         : <'unit'> name
 
-(* Is this all we want to be able to express in type expressions? *)
-type-expr       : name
-                | type-expr '*' type-expr
-                | type-expr '/' type-expr
-                | type-expr '^' number
+<definition>     : def | func-def
+def              : name (<':'> type-expr)? <'='> tl-expression
+func-def         : name <'['> arg-list <']'> (<':'> type-expr)? <'='> tl-expression
 
-arg-list        : arg-name (<','> arg-name)* | epsilon
-<arg-name>      : name (<':'> type-expr)?
+(* Denotable types *)
+<type-expr>      : x-type-expr | func-type
+func-type        : x-type-expr <'->'> type-expr
 
-<tl-expression> : function | if | let | expr
+<x-type-expr>    : m-type-expr | product-type
+product-type     : <'['> m-type-expr (<','> m-type-expr)+ <']'>
 
-function        : <'fn'> <'['> arg-list <']'> tl-expression
-if              : <'if'> tl-expression <'then'> tl-expression <'else'> tl-expression
+<m-type-expr>    : p-type-expr | mul-types | div-types
+mul-types        : m-type-expr <'*'> p-type-expr | m-type-expr p-type-expr
+div-types        : m-type-expr <'/'> p-type-expr
 
-(* let definitions should be identical to other definitions, this calls for
-   change in inference mechanism *)
-let             : <'let'> name <'='> tl-expression <'in'> tl-expression
+<p-type-expr>    : exp-type | prim-type-expr
+exp-type         : prim-type-expr <'^'> exponent
+(* TODO: Special syntax for type/dim variables? *)
+<prim-type-expr> : name | <'('> type-expr <')'> | prim-type | dim-var
+prim-type        : 'Bool' | '1'
+dim-var         : <"'"> name
+(* End of denotable types *)
 
-expr            : a_expr (logic-op a_expr)?
-logic-op        : '<' | '>' | '<=' | '>=' | '==' | '!=' | '&' | '|'
+arg-list         : arg (<','> arg)* | epsilon
+arg              : name (<':'> type-expr)?
 
-a_expr          : m_expr | a_expr a_op m_expr
-a_op            : '+' | '-'
+<tl-expression>  : function | if | let | expr
 
-m_expr          : first_u_expr | m_expr m_op u_expr
-m_op            : '*' | '/' | epsilon
+function         : <'fn'> <'['> arg-list <']'> tl-expression
+if               : <'if'> tl-expression <'then'> tl-expression <'else'> tl-expression
+let              : <'let'> definition <'in'> tl-expression
 
-(* Unary +/- operators can only appear as the first term in an m_expr *)
-first_u_expr    : ('+' | '-')? u_expr
-u_expr          : power | '!' u_expr
+<expr>           : a-expr | logic
+logic            : a-expr logic-op a-expr
 
-(* The power operator will not be bossible to type, should remove *)
-power           : primary ('^' first_u_expr)?
+(* TODO: and/or precedence and nested logic statements *)
+logic-op         : '<' | '>' | '<=' | '>=' | '==' | '!='
 
-primary         : name | number | boolean | apply | <'('> tl-expression <')'> 
+<a-expr>         : m_expr | add | subtract
+add              : a-expr <'+'> m_expr
+subtract         : a-expr <'-'> m_expr
 
-apply           : primary <'['> argument-list <']'>
-argument-list : (expr (<','> argument-list)*)?
+<m_expr>         : first_u_expr | mul | div
+mul              : m_expr <'*'> u_expr | m_expr u_expr
+div              : m_expr <'/'> first_u_expr
 
-name            : !keyword #'[a-zA-Z_][a-zA-Z0-9_]*'
-number          : #'\d+'
-boolean         : 'True' | 'False'
-keyword         : 'def' | 'fn' | 'if' | 'then' | 'else' | 'let' | 'in'
+(* Unary +/- operators can only appear as the first term in an m_expr
+   to avoid ambiguity with space-as-multiplication and +/- as binary ops *)
+
+<first_u_expr>   : unary_plus_expr | unary_minus_expr | u_expr
+unary_plus_expr  : <'+'> first_u_expr
+unary_minus_expr : <'-'> first_u_expr
+<u_expr>         : p_expr | unary_not_expr
+unary_not_expr   : <'!'> u_expr
+
+<p_expr>         : exp | primary
+exp              : primary <'^'> exponent
+
+(* Since a general exponentiation operator would be impossible to type,
+   only compile-time (up to exponentiation) determinable values, i.e.
+   expressions involving only integers can be the exponent *)
+
+<exponent>           : p_exponent | unary-plus-exponent | unary-minus-exponent
+unary-plus-exponent  : <'+'> p_exponent
+unary-minus-exponent : <'-'> p_exponent
+<p_exponent>         : integer | exp-exp | <'('> exponent <')'>
+exp-exp              : integer <'^'> exponent
+
+<primary>        : name | number | boolean | apply | <'('> tl-expression <')'> 
+
+apply            : primary <'['> argument-list <']'>
+<argument-list>  : (expr (<','> argument-list)*)?
+
+name             : !(keyword ' ') #'[a-zA-Z_][a-zA-Z0-9_]*'
+number           : #'\d+(\.\d*)?'
+integer          : #'\d+'
+boolean          : 'True' | 'False'
+keyword          : 'def' | 'fn' | 'if' | 'then' | 'else' | 'let' | 'in' | 'Bool' | 'unit'

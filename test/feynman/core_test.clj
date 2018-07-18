@@ -1,6 +1,6 @@
 (ns feynman.core-test
   (:require [clojure.test :refer :all]
-            [clojure-test.core :refer :all]))
+            [feynman.core :refer :all]))
 
 (deftest a-test
   (testing "FIXME, I fail."

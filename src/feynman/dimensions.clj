@@ -1,4 +1,18 @@
+;;;; Dimension vector operations
+
+;;; All dimensions/units are represented as maps from dimension/unit names
+;;; to integers representing the exponent of the corresponding dimension/unit
+;;; in the compound expression. Note that this means that vector addition
+;;; corresponds to multiplication of expressions, and scalar multiplication
+;;; corresponds to exponentiation.
+
+;;; For example, acceleration (L / T^2) would be: {"L" 1 "T" -2}
+;;; and time (T) would be: {"T" 1} and the addition of those two "vectors"
+;;; results in {"L" 1 "T" -1}, or L/T.
+
+
 (ns feynman.dimensions
+  "Operations relating to dimension vectors"
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             [feynman.state :as state]))
@@ -21,12 +35,12 @@
   [d]
   (into {} (remove #(zero? (second %)) d)))
 
-(defn map-vals
+(defn vmap
   "Map the function f over the values of the dimension vector"
   [f d]
   (create-dimvec (for [[k v] d] [k (f v)])))
 
-(s/fdef map-vals
+(s/fdef vmap
         :args (s/cat :d ::dim-vector :f (s/fspec :args (s/cat :n int?) :ret int?))
         :ret ::dim-vector
         :fn #(every? (-> % :args :d keys set) (-> % :ret keys)))
@@ -46,7 +60,10 @@
         :args (s/cat :d ::dim-vector :f (s/fspec :args (s/cat :n int?)))
         :ret (s/cat ::true-keys ::dim-vector ::false-keys ::dim-vector))
 
-(defn is-variable? [k] (= (first k) :dim-variable))
+#_(defn is-variable? [k] (= (first k) :dim-variable))
+
+(def is-variable? symbol?)
+(defn new-dimension-variable [] (gensym "d__"))
 
 (defn dim-variables [d] (filter-keys is-variable? d))
 
@@ -55,7 +72,7 @@
   [d]
   (let [min-dim (->> d
                      dim-variables
-                     (map-vals #(. Math abs %))
+                     (vmap #(. Math abs %))
                      (apply min-key second)
                      first)]
     [min-dim (d min-dim)]))
@@ -71,13 +88,13 @@
 (defn add
   "Add one or more dimension vectors, corresponds to multiplication of the expressions"
   [& args]
-  (->> args (apply merge-with +) create-dimvec))
+  (create-dimvec (apply merge-with + args)))
 
 (defn mul
   "Multiply dimension vector by scalar, corresponding to exponentiation of expression.
   Note that the scalar can be an arbitrary number, the resulting values will be floor-ed"
   [dim scalar]
-  (map-vals #(int (Math/floor (*' scalar %))) dim))
+  (vmap #(int (Math/floor (*' scalar %))) dim))
 
 (defn inv [d] (mul d -1))
 
@@ -125,7 +142,7 @@
 
 (defn unify-with-one
   "Find substitution to that unifies dim with a dimensionless quantity"
-  [expr state]
+  [expr]
   (loop [s {} d expr]
     (cond (empty? d) {}
           (empty? (dim-variables d)) nil
@@ -134,7 +151,7 @@
                 divided (-> d (mul (/ 1 x-1)) inv (dissoc d-1))]
             (if (divides? d x-1)
               (assoc s d-1 divided)
-              (let [newdim (state/new-dimension-variable! state)
+              (let [newdim (new-dimension-variable)
                     subval (add divided {newdim 1})
                     new-s (assoc s d-1 subval)
                     new-d (apply-subs new-s d)]
@@ -158,4 +175,4 @@
     d1 + (-d2) = 0 (In vector notaion)
   Or equivalently:
     d1 * (1/d2) = 1 (For the dimension expressions)"
-  [d1 d2 state] (unify-with-one (add d1 (inv d2)) state))
+  [d1 d2] (unify-with-one (add d1 (inv d2))))

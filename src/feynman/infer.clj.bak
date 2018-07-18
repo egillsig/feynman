@@ -1,26 +1,27 @@
 (ns feynman.infer
   (:require [clojure.core.match :refer [match]]
+            [feynman.state :as state]
             [feynman.types :as t]))
 
 (defn transpose
   [coll]
   (apply (partial map vector) coll))
 
-(defn new-type-var [] (gensym "alpha__"))
-
+;; infer : Assign x expr x state -> substitution x type
+;; State possibly mutated, throws exception on type error
 (declare infer)
 
 (defn infer-bool
-  [_ _] [{} :Boolean])
+  [A expr state] [{} [:bool]])
 
 (defn infer-number
   ;; TODO: zero is polymorphic
-  [_ _] [{} [:dimension {}]])
+  [A expr state] [{} [:dimension {}]])
 
 (defn infer-name
-  [A expr]
+  [A expr state]
   (if-let [value (get A (second expr))]
-    [{} (t/instantiate value)]
+    [{} (t/instantiate value state)]
     (throw (ex-info "Unknown variable name"
                     {:name (second expr)
                      :expr expr
@@ -29,24 +30,24 @@
 ; Note: infer-args-list does not return substitution but map of names to types
 ; and product type
 (defn infer-args-list
-  [A expr]
+  [A expr state]
   (let [args (rest expr)
         arg-type (fn [a]
                    (match [a]
                      [[:arg [:name arg-name]]]
-                     (new-type-var)
+                     (state/new-type-variable! state)
                      [[:arg [:name arg-name] type-expr]]
-                     (second (infer A type-expr))))
+                     (second (infer A type-expr state))))
         arg-types (map arg-type args)
         arg-name (fn [a] (-> a second second))
         arg-names (map arg-name args)]
     [(zipmap arg-names arg-types) (apply vector :product arg-types)]))
 
 (defn infer-function
-  [A expr]
+  [A expr state]
   (let [[_ arg-list fn-body] expr
-        [args-map args-type] (infer-args-list A arg-list)
-        [s tau] (infer (merge A (into {} args-map)) fn-body)
+        [args-map args-type] (infer-args-list A arg-list state)
+        [s tau] (infer (merge A (into {} args-map)) fn-body state)
         functype [:function (t/apply-substitution s args-type) tau]]
     [s functype]))
 
@@ -57,16 +58,19 @@
     [[:def [:name var-name] & r]] var-name))
 
 (defn infer-def
-  [A expr]
+  [A expr state]
   (match [expr]
     [[:func-def [:name func-name] arg-list def-expr]]
     (infer-function
-     (assoc A func-name (new-type-var))
-     [:function arg-list def-expr])
+     (assoc A func-name (state/new-type-variable! state))
+     [:function arg-list def-expr]
+     state)
+
     [[:func-def [:name func-name] arg-list ret-type def-expr]]
     (let [[s inferred-functype] (infer-function
-                                 (assoc A func-name (new-type-var))
-                                 [:function arg-list def-expr])
+                                 (assoc A func-name (state/new-type-variable!))
+                                 [:function arg-list def-expr]
+                                 state)
           [_ _ inferred-ret-type] inferred-functype
           declared-ret-type (infer A ret-type)]
       (if (not= inferred-ret-type declared-ret-type)
@@ -77,9 +81,11 @@
                          :env A}))
         [s inferred-functype]))
 
-    [[:def [:name var-name] def-expr]] (infer A def-expr)
+    [[:def [:name var-name] def-expr]]
+    (infer A def-expr state)
+
     [[:def [:nane var-name] var-type def-expr]]
-    (let [[s inferred-t] (infer A def-expr)
+    (let [[s inferred-t] (infer A def-expr state)
           declared-t (infer A var-type)]
       (if (not= inferred-t declared-t)
         (throw (ex-info "Failed to match declared type with inferred type"
@@ -90,29 +96,29 @@
         [s inferred-t]))))
 
 (defn infer-let
-  [A expr]
+  [A expr state]
   (let [[_ let-def let-expr] expr
         let-name (def-name let-def)
-        [s1 tau1] (infer-def A let-def)
+        [s1 tau1] (infer-def A let-def state)
         a2 (assoc A
                   let-name
                   (t/generalize tau1 (t/apply-substitution s1 A)))
-        [s2 tau2] (infer a2 let-expr)]
+        [s2 tau2] (infer a2 let-expr state)]
     [(merge s1 s2) tau2]))
 
 (defn infer-if
-  [A expr]
+  [A expr state]
   (let [[_ if-condition if-if if-else] expr
-        [s1 tau1] (infer A if-condition)
-        s1 (t/unify tau1 :Boolean)]
+        [s1 tau1] (infer A if-condition state)
+        s1 (t/unify tau1 [:bool] state)]
     (if-not s1
       (throw (ex-info "If-condition not boolean" {:cond-type tau1
                                                   :expr expr
                                                   :env A}))
-      (let [[s2 tau2] (infer (t/apply-substitution s1 A) if-if)
-            [s3 tau3] (infer (t/apply-substitution s2 A) if-else)
+      (let [[s2 tau2] (infer (t/apply-substitution s1 A) if-if state)
+            [s3 tau3] (infer (t/apply-substitution s2 A) if-else state)
             tau2 (t/apply-substitution s3 tau2)
-            s4 (t/unify tau2 tau3)]
+            s4 (t/unify tau2 tau3 state)]
         (if s4
           [(merge s1 s2 s3 s4) (t/apply-substitution s4 tau3)]
           (throw (ex-info "Failed to match if/else branches"
@@ -122,16 +128,18 @@
                            :env A})))))))
 
 (defn infer-apply
-  [A expr]
+  [A expr state]
   (let [[_ func-name & func-args] expr
-        [s1 tau1] (infer A func-name)
-        type-map (map #(infer (t/apply-substitution s1 A) %) func-args)]
+        [s1 tau1] (infer A func-name state)
+        type-map (map #(infer (t/apply-substitution s1 A) % state) func-args)]
+    (println "function" (second func-name) ":" tau1)
     (let [[args-subs args-types] (transpose type-map)
           args-subs (apply merge args-subs)
           args-type (apply vector :product args-types)
-          alpha (new-type-var)
+          alpha (state/new-type-variable! state)
           s3 (t/unify (t/apply-substitution args-subs tau1)
-                      [:function args-type alpha])]
+                      [:function args-type alpha]
+                      state)]
       (if s3
         [(merge s1 args-subs s3) (t/apply-substitution s3 alpha)]
         (throw (ex-info "Failed to match function type with arguments."
@@ -141,16 +149,25 @@
                          :env A}))))))
 
 (defn infer
+  ([A expr] (infer A expr (state/create-state)))
+  ([A expr state]
+   (match [expr]
+     [[:boolean _]] (infer-bool A expr state)
+     [[:name _]] (infer-name A expr state)
+     [[:number _]] (infer-number A expr state)
+     [[:function _ _]] (infer-function A expr state)
+     [[:let _ _]] (infer-let A expr state)
+     [[:if _ _ _]] (infer-if A expr state)
+     [[:apply & _]] (infer-apply A expr state)
+     [[:def & _]] (infer-def A expr state)
+     [[:func-def & _]] (infer-def A expr state)
+     [[_ subexpr]] (infer A subexpr state)
+     :else nil)))
+
+(defn infer-type
   [A expr]
-  (match [expr]
-    [[:boolean _]] (infer-bool A expr)
-    [[:name _]] (infer-name A expr)
-    [[:number _]] (infer-number A expr)
-    [[:function _ _]] (infer-function A expr)
-    [[:let _ _]] (infer-let A expr)
-    [[:if _ _ _]] (infer-if A expr)
-    [[:apply & _]] (infer-apply A expr)
-    [[:def & _]] (infer-def A expr)
-    [[:func-def & _]] (infer-def A expr)
-    [[_ subexpr]] (infer A subexpr)
-    :else nil))
+  (let [[subst e-type] (infer A expr)
+        e-type (t/generalize (t/apply-substitution subst e-type) A)]
+    (if (#{:def :func-def} (first expr))
+      [(def-name expr) e-type]
+      [nil e-type])))

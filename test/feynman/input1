@@ -15,6 +15,14 @@
 # Not really explicit need to define dimensions
 # But some form of structured dimension expressions
 
+unit m ;;
+unit s ;;
+unit kg ;;
+
+# which one makes more sense?
+unit N = kg m / s^2 ;;
+def N = kg m / s^2 ;;
+
 def l = 20 m ;;
 def t = 2 s ;;
 def v = 10 m / s ;;
@@ -33,7 +41,7 @@ square[t] == 4 s s ;;
 def my_sum[x,y] = x + y ;;
 my_sum[1,1] == 2 ;;
 
-def apply_twice[f] = f[f[x]] ;;
+def apply_twice[f] = fn [x] f[f[x]] ;;
 def apply_to_twice[f,x] = f[2*x] ;;
 
 apply_twice[square, 3s] == 81 s^4 ;;
