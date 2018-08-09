@@ -3,6 +3,60 @@
             [feynman.env :as env]
             [feynman.infer :refer :all]))
 
+(deftest denotable-types
+  (testing "eval-exponent"
+    (is (= 3 (eval-exponent [:integer 3])))
+    (is (= -1 (eval-exponent [:unary-minus-exponent [:integer 1]]))))
+
+  (testing "unit-expr-vars"
+    (is (= {} (unit-expr-vars [:name "m"])))
+    (is (= {} (unit-expr-vars [:dimensionless])))
+    (is (= ["A" "B"] (keys (unit-expr-vars
+                            [:mul-units
+                             [:var-type [:name "A"]]
+                             [:div-units
+                              [:name "m"]
+                              [:mul-units
+                               [:var-type [:name "B"]]
+                               [:var-type [:name "A"]]]]]))))
+
+    (testing "type-expr-vars"
+      (is (= ["A" "B"] (keys (type-expr-vars
+                              [:mul-units
+                               [:var-type [:name "A"]]
+                               [:div-units
+                                [:name "m"]
+                                [:mul-units
+                                 [:var-type [:name "B"]]
+                                 [:var-type [:name "A"]]]]]))))
+
+      (is (= ["A" "B"] (keys (type-expr-vars
+                              [:func-type [:var-type [:name "A"]]
+                               [:var-type [:name "B"]]])))))
+    (testing "eval-unit-expr"
+      (is (= [:dimension {"m" 1}]
+             (eval-unit-expr {"m" [:dimension {"m" 1}]}
+                             [:name "m"])))
+      (is (= [:dimension {"m" 2}]
+             (eval-unit-expr {"m" [:dimension {"m" 1}]}
+                             [:mul-units [:name "m"] [:name "m"]])))
+      (is (= [:dimension {'d__1 1}]
+             (eval-unit-expr {"A" 'd__1}
+                             [:var-type [:name "A"]]))))
+    (testing "eval-type-expr"
+      (is (= [{"Type" :Type} :Type] (eval-type-expr {"Type" :Type}
+                                                    [:type-name "Type"])))
+      (is (= [{"A" 'a} 'a] (eval-type-expr {"A" 'a}
+                                           [:var-type [:name "A"]])))
+      (let [[newenv t] (eval-type-expr {}
+                                       [:func-type
+                                        [:var-type [:name "A"]]
+                                        [:var-type [:name "B"]]])
+            a-type (newenv "A")
+            b-type (newenv "B")]
+        (is (= ["A" "B"] (keys newenv)))
+        (is (= t [:function [:product a-type] b-type]))))))
+
 (deftest basic-infer-funcs
   (testing "infer-name"
     (is (= (infer-name {"m" :type} [:name "m"]) [{} :type]))
@@ -13,23 +67,35 @@
                     [:name "square"])))
 
   (testing "infer-args-list"
-    (is (= (infer-args-list {"L" :type}
+    (let [[e t] (infer-args-list {} [:arg-list [:arg [:name "x"]]])
+          x-type (e "x")]
+      (is (= t [:product x-type])))
+
+    (is (= [{:types {"L" [:dimension {"L" 1}]}
+             "x" [:dimension {"L" 1}]}
+            [:product [:dimension {"L" 1}]]]
+           (infer-args-list {:types {"L" [:dimension {"L" 1}]}}
+                            [:arg-list [:arg [:name "x"] [:name "L"]]])))
+
+    (is (= (infer-args-list {:types {"type" :type}}
                             [:arg-list
-                             [:arg [:name "x"] [:name "L"]]])
-           [{"x" :type} [:product :type]]))))
+                             [:arg [:name "x"] [:type-name "type"]]])
+           [{"x" :type :types {"type" :type}} [:product :type]]))))
 
 (deftest core-infer-funcs
   (testing "infer-function"
-    (is (infer-function
-         {}
-         [:function [:arg-list [:arg [:name "x"]]] [:name "x"]]))
+    (let [[_ functype] (infer-function
+                        {}
+                        [:function [:arg-list [:arg [:name "x"]]] [:name "x"]])
+          x-type (last functype)]
+      (is (= functype [:function [:product x-type] x-type])))
 
     (is (infer-function {"y" :type}
                         [:function [:arg-list [:arg [:name "x"]]] [:name "y"]])))
 
   (testing "infer-def"
     (is (= (infer-def {}
-                      [:def [:name "x"] [:number "1"]])
+                      [:def [:name "x"] [:number 1]])
            [{} [:dimension {}]]))
 
     (is (infer-def {"*" [:forall #{'d__1 'd__2}
@@ -42,7 +108,7 @@
 
   (testing "infer-let"
     (is (= (infer-let {}
-                      [:let [:def [:name "x"] [:number "1"]] [:name "x"]])
+                      [:let [:def [:name "x"] [:number 1]] [:name "x"]])
            [{} [:dimension {}]])))
   (testing "infer-if"
     (is (= (infer-if {"x" :type "y" :type}
@@ -55,7 +121,7 @@
                                                   [:dimension {'d__1 1}]
                                                   [:dimension {'d__2 1}]]
                                        [:dimension {'d__1 1 'd__2 1}]]]}
-                                [:apply [:name "*"] [:number "1"] [:number "1"]]))
+                                [:apply [:name "*"] [:number 1] [:number 1]]))
            [:dimension {}]))))
 
 (deftest expressions

@@ -1,0 +1,21 @@
+unit m ;;
+unit s ;;
+unit kg ;;
+unit N = kg m / s^2 ;;
+
+def l = 20 m ;;
+def t = 2 s ;;
+def v = 10 m / s ;;
+def ma = 1 kg ;;
+def F = 5 N ;;
+
+l/t == v ;;
+v t == 20 m ;;
+ma v/t == F ;;
+l/t + v == 20 m/s ;;
+
+l + t ;;
+v - t ;;
+F + ma ;;
+def f2: N = m v;;
+def f3: N = v/t;;

@@ -6,7 +6,8 @@
   :dependencies [[org.clojure/clojure "1.9.0"]
                  [instaparse "1.4.9"]
                  [org.clojure/test.check "0.9.0"]
-                 [org.clojure/core.match "0.3.0-alpha5"]]
+                 [org.clojure/core.match "0.3.0-alpha5"]
+                 [org.clojure/math.numeric-tower "0.0.4"]]
   :main ^:skip-aot feynman.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})

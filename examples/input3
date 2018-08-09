@@ -1,0 +1,14 @@
+unit m ;;
+unit s ;;
+unit kg ;;
+unit K ;;
+unit mol ;;
+
+unit N = kg m / s^2 ;;
+unit J = N m ;;
+unit Pa = N / m^2 ;;
+
+def calcPressure[
+        P_b: Pa, T_b: K, L_b: K/m, h: m, h_b: m, R: J/(mol K), g: m/s^2, M: kg/mol
+    ]: Pa = 
+    P_b (T_b/(T_b + L_b (h - h_b)))^(g M / (R L_b)) ;;

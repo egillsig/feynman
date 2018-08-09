@@ -1,0 +1,13 @@
+def integrate[f,a,b,n] =
+    let h = (b-a)/n in
+    let iter[x,i] = 
+        if i == 0 then 0
+        else f[x] + iter[x+h, i-1]
+    in h (f[a] / 2 + iter[a+h, n-1] + f[b]/2) ;;
+
+def integrate[f: 'A -> 'B, a: 'A, b: 'A, n: 1]: 'A 'B =
+    let h = (b-a)/n in
+    let iter[x: 'A, i: 1]: 'B = 
+        if i == 0 then 0
+        else f[x] + iter[x+h, i-1]
+    in h (f[a] / 2 + iter[a+h, n-1] + f[b]/2) ;;

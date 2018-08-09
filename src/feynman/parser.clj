@@ -1,8 +1,5 @@
 (ns feynman.parser
-  (:require [clojure.core.match :refer [match]]
-            [clojure.string :as string]
-            [clojure.walk :as walk]
-            [feynman.infer :as i]
+  (:require [clojure.string :as string]
             [instaparse.core :as insta]))
 
 (defn preprocess
@@ -18,23 +15,31 @@
   [fname]
   (fn [& args] (apply vector :apply [:name fname] args)))
 
+(defn infix->prefix
+  [a op b] [:apply op a b])
+
 (def transform-ops
   "Transform operators to function calls"
   (partial insta/transform
            {:add (callfunc "+")
             :subtract (callfunc "-")
             :mul (callfunc "*")
-            :div (callfunc "/")}))
+            :div (callfunc "/")
+            :exp (callfunc "^")
+            :logic-op #(vector :name %)
+            :logic infix->prefix}))
 
 (defn throw-if-fail
   [e]
   (if (instance? instaparse.gll.Failure e)
-    (throw (ex-info "Parse error"
-                    {:error e}))
+    (throw (ex-info "Parse error" {:error e}))
     e))
 
-#_(def parse-numbers (partial insta/transform {:number clojure.edn/read-string}))
+(defn num-parser [kw] (fn [n] [kw (clojure.edn/read-string n)]))
+(def parse-numbers (partial insta/transform
+                            {:number (num-parser :number)
+                             :integer (num-parser :integer)}))
 
-(def transform-expr (comp #_parse-numbers transform-ops))
+(def transform-expr (comp parse-numbers transform-ops))
 
 (def parse (comp transform-expr first throw-if-fail parser preprocess))
