@@ -12,7 +12,7 @@
 
 ;;; Keys in a dimension vector can also be variables, represented as symbols
 ;;; with d__ as prefix, for example the expression d_1 ^ 2 * d_2 * L would be
-;;; {d__1 2 d__2 1 "L" 1}?
+;;; {'d__1 2 'd__2 1 "L" 1}?
 
 (ns feynman.dimensions
   "Operations relating to dimension vectors"
@@ -63,7 +63,8 @@
 (defn variables [d] (filter-keys is-variable? d))
 
 (defn min-exponent-var
-  "Return the dimension variable and exponent with smallest absolute value of exponent"
+  "Return the dimension variable and exponent with smallest absolute value of
+  exponent"
   [d]
   (let [vars (variables d)]
     (when (seq vars)
@@ -76,13 +77,15 @@
 ;;; Arithmetic operations on dimension vectors
 
 (defn add
-  "Add one or more dimension vectors, corresponds to multiplication of the expressions"
+  "Add one or more dimension vectors, corresponds to multiplication of the
+  expressions"
   [& args]
   (create-vec (apply merge-with +' args)))
 
 (defn mul
-  "Multiply dimension vector by scalar, corresponding to exponentiation of expression.
-  Note that the scalar can be an arbitrary number, the resulting values will be floor-ed"
+  "Multiply dimension vector by scalar, corresponding to exponentiation of
+  expression.  Note that the scalar can be an arbitrary number, the resulting
+  values will be floor-ed"
   [dim scalar]
   (vmap #(let [v (math/floor (*' scalar %))]
            (if (or (> v Integer/MAX_VALUE)
@@ -165,12 +168,11 @@
                    (= {} (apply-subst ret (-> % :args :expr))))))
 
 (defn unify
-  "Find substitution to that unifies the two dimension expressions
-
-  Note that:
-    d1 = d2
-  Implies:
-    d1 + (-d2) = 0 (In vector notaion)
-  Or equivalently:
-    d1 * (1/d2) = 1 (For the dimension expressions)"
+  "Find substitution to that unifies the two dimension expressions"
+  ;; Note that:
+  ;;   d1 = d2
+  ;; Implies:
+  ;;   d1 + (-d2) = 0 (In vector notaion)
+  ;; Or equivalently:
+  ;;   d1 * (1/d2) = 1 (For the dimension expressions)
   [d1 d2] (unify-with-one (add d1 (inv d2))))

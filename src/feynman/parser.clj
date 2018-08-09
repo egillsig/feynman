@@ -2,10 +2,7 @@
   (:require [clojure.string :as string]
             [instaparse.core :as insta]))
 
-(defn preprocess
-  "Remove comments"
-  [s]
-  (string/replace s #"#.*" ""))
+(defn remove-comments [s] (string/replace s #"#.*" ""))
 
 (def parser (insta/parser "src/feynman/grammar.bnf"
                           :auto-whitespace :standard
@@ -42,4 +39,4 @@
 
 (def transform-expr (comp parse-numbers transform-ops))
 
-(def parse (comp transform-expr first throw-if-fail parser preprocess))
+(def parse (comp transform-expr first throw-if-fail parser remove-comments))

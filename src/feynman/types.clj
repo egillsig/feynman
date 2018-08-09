@@ -5,7 +5,7 @@
 ;;; * base type, represented as keywords
 ;;; * variables,        "       symbols
 ;;; * Compound types/type applications, notably function and product types,
-;;;   represented as a vector starting with name, for example: [:function 'a :Bool]
+;;;   represented as a vector starting with name, for example: [:function 'a :Boolean]
 ;;; * Dimensions/units a special type of compound type with dimension vector
 ;;;   in place of type argument: [:dimension {"L" 1 "T" -2}]
 

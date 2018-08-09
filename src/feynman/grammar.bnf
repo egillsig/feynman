@@ -1,5 +1,4 @@
 (* Possible additions:
-   * Unit definitions, aliases, etc. 
    * literals for tuples, lists, vectors ...
    * type definitions and type classes *)
 
@@ -14,6 +13,7 @@ def              : name (<':'> type-expr)? <'='> tl-expression
 func-def         : name <'['> arg-list <']'> (<':'> type-expr)? <'='> tl-expression
 
 (* Denotable types *)
+
 <type-expr>      : x-type-expr | func-type
 func-type        : x-type-expr <'->'> type-expr
 
