@@ -1,0 +1,20 @@
+>  unit m
+Inferred type: [m]
+(def m 1)
+>  unit s
+Inferred type: [s]
+(def s 1)
+>  unit kg
+Inferred type: [kg]
+(def kg 1)
+>  unit N = kg m/s^2
+Inferred type: [kg * m * s^-2]
+(def N 1)
+>  unit J = m N
+Inferred type: [m^2 * kg * s^-2]
+(def J 1)
+>  def energy[length: m, amplitude: m, density: kg/m, tension: N]: J = 1
+Failed to match declared type:
+	[m^2 * kg * s^-2]
+with inferred type:
+	[]

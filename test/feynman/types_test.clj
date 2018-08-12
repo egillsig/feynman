@@ -1,7 +1,6 @@
 (ns feynman.types-test
   (:require [clojure.test :refer :all]
             [feynman.env :as env]
-            [feynman.state :as state]
             [feynman.types :refer :all]))
 
 (deftest helpers
@@ -106,43 +105,42 @@
              product)))))
 
 (deftest unification
-  (let [new-state #(state/create-state)]
 
-    (testing "unify"
-      (is (= (unify :type :type) {}))
+  (testing "unify"
+    (is (= (unify :type :type) {}))
 
-      (is (= (unify 'a 'a) {}))
+    (is (= (unify 'a 'a) {}))
 
-      (is (= (unify 'a 'b) {'a 'b}))
+    (is (= (unify 'a 'b) {'a 'b}))
 
-      (is (= (unify 'a [:dimension {'d__1 1}])
-             {'a [:dimension {'d__1 1}]}))
+    (is (= (unify 'a [:dimension {'d__1 1}])
+           {'a [:dimension {'d__1 1}]}))
 
-      (is (= (unify
-              [:product [:dimension {'d__1 1}] [:dimension {'d__2 1}]]
-              [:product 'a 'a])
-             {'a [:dimension {'d__1 1}]
-              'd__1 {'d__2 1}}))
+    (is (= (unify
+            [:product [:dimension {'d__1 1}] [:dimension {'d__2 1}]]
+            [:product 'a 'a])
+           {'a [:dimension {'d__1 1}]
+            'd__1 {'d__2 1}}))
 
-      ;; d_1 x d_2 -> d_1*d_2
-      ;; a_1 x a_1 -> a_2
-      (is (let [s (unify [:function [:product
-                                     [:dimension {'d__1 1}]
-                                     [:dimension {'d__2 1}]]
-                          [:dimension {'d__1 1 'd__2 1}]]
-                         [:function [:product 'a 'a] 'b])]
-            (= (apply-substitution s 'b)
-               [:dimension {'d__2 2}])))
+    ;; d_1 x d_2 -> d_1*d_2
+    ;; a_1 x a_1 -> a_2
+    (is (let [s (unify [:function [:product
+                                   [:dimension {'d__1 1}]
+                                   [:dimension {'d__2 1}]]
+                        [:dimension {'d__1 1 'd__2 1}]]
+                       [:function [:product 'a 'a] 'b])]
+          (= (apply-substitution s 'b)
+             [:dimension {'d__2 2}])))
 
-      (is (= nil
-             (unify [:product [:dimension {"L" 1}] [:dimension {"T" 1}]]
-                    [:product [:dimension {'d__1 1}] [:dimension {'d__1 1}]])))
-      (is (= nil
-             (unify [:function [:product
-                                [:dimension {"L" 1}]
-                                [:dimension {"T" 1}]]
-                     'a]
-                    [:function [:product
-                                [:dimension {'d__1 1}]
-                                [:dimension {'d__1 1}]]
-                     [:dimension {'d__1 1}]]))))))
+    (is (= nil
+           (unify [:product [:dimension {"L" 1}] [:dimension {"T" 1}]]
+                  [:product [:dimension {'d__1 1}] [:dimension {'d__1 1}]])))
+    (is (= nil
+           (unify [:function [:product
+                              [:dimension {"L" 1}]
+                              [:dimension {"T" 1}]]
+                   'a]
+                  [:function [:product
+                              [:dimension {'d__1 1}]
+                              [:dimension {'d__1 1}]]
+                   [:dimension {'d__1 1}]])))))

@@ -1,0 +1,64 @@
+>  unit m
+Inferred type: [m]
+(def m 1)
+>  unit s
+Inferred type: [s]
+(def s 1)
+>  unit kg
+Inferred type: [kg]
+(def kg 1)
+>  unit N = kg m / s^2
+Inferred type: [kg * m * s^-2]
+(def N 1)
+>  def l = 20 m
+Inferred type: [m]
+(def l (* 20 m))
+>  def t = 2 s
+Inferred type: [s]
+(def t (* 2 s))
+>  def v = 10 m / s
+Inferred type: [m * s^-1]
+(def v (/ (* 10 m) s))
+>  def ma = 1 kg
+Inferred type: [kg]
+(def ma (* 1 kg))
+>  def F = 5 N
+Inferred type: [kg * m * s^-2]
+(def F (* 5 N))
+>  l/t == v
+Inferred type: Boolean
+(= (/ l t) v)
+>  v t == 20 m
+Inferred type: Boolean
+(= (* v t) (* 20 m))
+>  ma v/t == F
+Inferred type: Boolean
+(= (/ (* ma v) t) F)
+>  l/t + v == 20 m/s
+Inferred type: Boolean
+(= (+ (/ l t) v) (/ (* 20 m) s))
+>  l + t
+Failed to match type of function arguments:
+	(['A] x ['A]) -> ['A]
+given type:
+	([m] x [s])
+>  v - t
+Failed to match type of function arguments:
+	(['A] x ['A]) -> ['A]
+given type:
+	([m * s^-1] x [s])
+>  F + ma
+Failed to match type of function arguments:
+	(['A] x ['A]) -> ['A]
+given type:
+	([kg * m * s^-2] x [kg])
+>  def f2: N = m v
+Failed to match declared type:
+	([kg * m * s^-2])
+with inferred type:
+	[m^2 * s^-1]
+>  def f3: N = v/t
+Failed to match declared type:
+	([kg * m * s^-2])
+with inferred type:
+	[m * s^-2]

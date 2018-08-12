@@ -1,0 +1,8 @@
+unit m ;;
+unit s ;;
+unit kg ;;
+
+unit N = kg m/s^2 ;;
+unit J = m N ;;
+
+def energy[length: m, amplitude: m, density: kg/m, tension: N]: J = 1 ;;

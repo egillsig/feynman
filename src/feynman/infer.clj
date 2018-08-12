@@ -1,7 +1,8 @@
 (ns feynman.infer
   (:require [clojure.core.match :refer [match]]
             [feynman.dimensions :as dim]
-            [feynman.types :as t]))
+            [feynman.types :as t]
+            [puget.printer :refer [pprint]]))
 
 (defn transpose
   [coll]
@@ -32,7 +33,6 @@
     [[:dimensionless]] {}
     [[:var-type [:name n]]] {n (dim/new-dimension-variable)}))
 
-;; TODO Add env param
 (defn type-expr-vars
   [expr]
   (letfn
@@ -140,7 +140,7 @@
      [:function arg-list def-expr])
     [[:func-def [:name func-name] arg-list ret-type def-expr]]
     (let [[s inferred-functype] (infer-function
-                                 (assoc A func-name (new-type-var))
+                                 (assoc A func-name (new-type-var)) ;FIXME: the pre-guessed type of func is never unified with inferred type
                                  [:function arg-list def-expr])
           [_ _ inferred-ret-type] inferred-functype
           [_ declared-ret-type] (eval-type-expr A ret-type)]
@@ -192,6 +192,8 @@
             [s3 tau3] (infer (t/apply-substitution (merge s1 s2) A) if-else)
             tau2 (t/apply-substitution s3 tau2)
             s4 (t/unify tau2 tau3)]
+        (println "If type: " tau2)
+        (println "Else type: " tau3)
         (if s4
           [(merge s1 s2 s3 s4) (t/apply-substitution s4 tau3)]
           (throw (ex-info "match-if-else"
@@ -245,7 +247,9 @@
   [A expr]
   ; (println "Inferring" (transpile expr))
   (let [[subst t] (infer- A expr)]
-    ; (println "Returning" t subst "for " expr)
+    (pprint subst)
+    (println "type: " t)
+    (println "for:" expr)
     [subst t]))
 
 (defn infer-type

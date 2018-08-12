@@ -28,36 +28,57 @@
               (t/base-type? t) (name t)
               (t/variable? t) (get env t t)
               (t/dim-type? t) (pp-dim (second t) env)
-              (t/compound-type? t) (str "(" (string/join (separator (first t))
-                                                         (map #(pp % env) (rest t)))
-                                        ")")))]
+              (t/compound-type? t)
+              (let [s (string/join (separator (first t))
+                                   (map #(pp % env) (rest t)))]
+                (if (= :function (first t))
+                  s
+                  (str "(" s ")")))))]
     (if (t/type-scheme? tt)
       (let [[_ vars expr] tt]
         (pp expr (zipmap vars (pp-var-names (count vars)))))
-      (pp tt {}))))
+      (let [vars (t/free-vars tt)]
+        (pp tt (zipmap vars (pp-var-names (count vars))))))))
 
 (defn err-msg
   [msg & args]
   (fn [data]
     (apply format msg (map (comp pp-type data) args))))
 
+(defn handle-unknown-var
+  [data]
+  (string/join
+   \newline
+   [(format "Unknown variable name: %s" (:name data))]))
+
+(defn handle-var-type
+  [data]
+  (string/join
+   \newline
+   ["Failed to match declared type:"
+    (format "\t%s" (pp-type (:declared data)))
+    "with inferred type:"
+    (format "\t%s" (pp-type (:inferred data)))]))
+
+(defn handle-args-type
+  [data]
+  (string/join
+   \newline
+   ["Failed to match type of function arguments:"
+    (format "\t%s" (pp-type (:func-type data)))
+    "given type:"
+    (format "\t%s" (pp-type (:args-type data)))]))
+
 (def messages
-  {"unknown-var"
-   (err-msg "Unknown variable name: %s" :name)
-   "unknown-unit"
-   (err-msg "Unknown unit name: %s" :name)
-   "match-rtn"
-   (err-msg "Failed to match return type %s, with inferred type: %s"
-            :declared :inferred)
-   "match-var"
-   (err-msg "Failed to match declared variable type %s, inferred %s" :inferred :declared)
-   "match-func-args"
-   (err-msg "Failed to match function arguments (%s) with declared type (%s) in expr %s"
-            :func-type :args-type :expr)
-   "if-not-bool"
-   (err-msg "If condition not boolean, type: " :cond-type)
+  {"unknown-var" handle-unknown-var
+   "unknown-unit" handle-unknown-var
+   "match-rtn" handle-var-type
+   "match-var" handle-var-type
+   "match-func-args" handle-args-type
+   "if-not-bool" (err-msg "If condition not boolean, type: %s" :cond-type)
    "match-if-else"
-   (err-msg "Failed to match if/else branch types:" :if-type :else-type)})
+   (err-msg "Failed to match types of if/else branches:\n\tif:%s\n\telse:%s"
+            :if-type :else-type)})
 
 (defn report
   [exc]

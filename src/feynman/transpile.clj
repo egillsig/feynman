@@ -28,6 +28,7 @@
    :arg-list vector
    :func-def transform-funcdef
    :if (fn [& args] `(if ~@args))
+   :function (fn [args expr] `(fn ~args ~expr))
    :let transform-let})
 
 (def transpile (partial insta/transform transform-map))

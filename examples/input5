@@ -1,0 +1,25 @@
+unit s;;
+def t = 2 s;;
+
+t t == 4 s s;;
+
+# Recursion
+def factorial[x] = if x == 0 then 1 else x * factorial[x-1] ;;
+factorial[5] == 120 ;;
+
+def apply_twice[f,x] = f[f[x]] ;;
+
+# can't type, intersection types, also anonymous functions
+apply_twice[(fn [x] x x), 3s] == 81 s s s s ;;
+
+# This should have type ([] x []) -> [] but doesn't
+def pow[base, exp] = if exp == 0 then 1 else base pow[base, exp-1] ;;
+
+# How to use let-generalisation problematic example?
+# F#: fun x -> let d = div x in (d mass, d time) ;;
+
+unit kg;;
+def mass = 10 kg ;;
+
+fn [x] let d = (fn [y] x/y) in let a = d[mass] in let b = d[t] in a b;;
+

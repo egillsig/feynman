@@ -1,0 +1,28 @@
+>  unit s
+Inferred type: [s]
+(def s 1)
+>  def t = 2 s
+Inferred type: [s]
+(def t (* 2 s))
+>  t t == 4 s s
+Inferred type: Boolean
+(= (* t t) (* (* 4 s) s))
+>  # Recursion
+def factorial[x] = if x == 0 then 1 else x * factorial[x-1]
+Inferred type: ([]) -> []
+(clojure.core/defn
+ factorial
+ [x]
+ (if (= x 0) 1 (* x (factorial (- x 1)))))
+>  factorial[5] == 120
+Inferred type: Boolean
+(= (factorial 5) 120)
+>  def apply_twice[f,x] = f[f[x]]
+Inferred type: (('A) -> 'A x 'A) -> 'A
+(clojure.core/defn apply_twice [f x] (f (f x)))
+>  # can't type, intersection types, also anonymous functions
+apply_twice[(fn [x] x x), 3s] == 81 s s s s
+Failed to match type of function arguments:
+	(('A) -> 'A x 'A) -> 'A
+given type:
+	((['A]) -> ['A^2] x [s])

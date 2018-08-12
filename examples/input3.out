@@ -1,0 +1,37 @@
+>  unit m
+Inferred type: [m]
+(def m 1)
+>  unit s
+Inferred type: [s]
+(def s 1)
+>  unit kg
+Inferred type: [kg]
+(def kg 1)
+>  unit K
+Inferred type: [K]
+(def K 1)
+>  unit mol
+Inferred type: [mol]
+(def mol 1)
+>  unit N = kg m / s^2
+Inferred type: [kg * m * s^-2]
+(def N 1)
+>  unit J = N m
+Inferred type: [kg * m^2 * s^-2]
+(def J 1)
+>  unit Pa = N / m^2
+Inferred type: [kg * m^-1 * s^-2]
+(def Pa 1)
+>  def calcPressure[
+        P_b: Pa, T_b: K, L_b: K/m, h: m, h_b: m, R: J/(mol K), g: m/s^2, M: kg/mol
+    ]: Pa = 
+    P_b (T_b/(T_b + L_b (h - h_b)))^(g M / (R L_b))
+Inferred type: ([kg * m^-1 * s^-2] x [K] x [K * m^-1] x [m] x [m] x [kg * m^2 * s^-2 * mol^-1 * K^-1] x [m * s^-2] x [kg * mol^-1]) -> [kg * m^-1 * s^-2]
+(clojure.core/defn
+ calcPressure
+ [P_b T_b L_b h h_b R g M]
+ (*
+  P_b
+  (clojure.math.numeric-tower/expt
+   (/ T_b (+ T_b (* L_b (- h h_b))))
+   (/ (* g M) (* R L_b)))))
