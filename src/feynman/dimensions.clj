@@ -97,7 +97,7 @@
 (defn divides?
   "Returns true if all exponents in the dimension vector are divisible by n"
   [dim n]
-  (every? #(= 0 (mod % n)) (vals dim)))
+  (every? #(zero? (mod % n)) (vals dim)))
 
 ;;; Substitutions
 
@@ -135,9 +135,9 @@
                      :d ::vector)
         :ret ::vector
         ;; Should be idempotent
-        :fn #(= (-> % :ret)
-                (apply-subst (-> :arg :subst)
-                             (-> % :ret))))
+        :fn #(= (:ret %)
+                (apply-subst (-> % :arg :subst)
+                             (:ret %))))
 
 ;;; Dimensional unification
 
@@ -156,8 +156,7 @@
                     subval (add divided {newdim 1})
                     new-s (assoc s d-1 subval)
                     new-d (apply-subst new-s d)]
-                (if (= 1 (count (variables new-d)))
-                  nil
+                (when-not (= 1 (count (variables new-d)))
                   (recur new-s new-d))))))))
 
 (s/fdef unify-with-one

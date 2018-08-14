@@ -10,6 +10,8 @@
   (:gen-class))
 
 (defn process-input
+  "Parse, infer, and generate code for given input.
+  Print out relevant data as given by opts."
   [env input opts]
   (try
     (let [parsed (p/parse input)
@@ -27,9 +29,15 @@
       (println (err/report e)))))
 
 (defn process-inputs
+  "Process a sequence of inputs.
+  Opts can contain the following keys (all default to false):
+     :no-input - Do not print the input
+     :no-types - Do not print type inference info
+     :no-generate - Do not print generated clojure code
+     :eval - Evaluate the generated code"
   ([inputs opts]
    (loop [env env/init-types i inputs]
-     (when i
+     (when (and i (first i))
        (let [input (string/trim (first i))]
          (if (= "" input)
            (recur env (next i))
@@ -47,6 +55,7 @@
                    (recur (assoc env e-name e-type) (next i))))))))))))
 
 (defn get-input
+  "Get input from stdout, continues until ';;' is typed."
   []
   (loop [input nil]
     (print (if input "  " "> "))
@@ -56,8 +65,6 @@
         (if-not (clojure.string/ends-with? input ";;")
           (recur input)
           input)))))
-
-(defn repl [] (process-inputs (repeatedly get-input) {:no-input true}))
 
 (def cli-options
   [[nil "--no-input" "Don't print input"]
@@ -70,7 +77,7 @@
   (let [opts (parse-opts args cli-options)]
     (if (:errors opts)
       (println (string/join \newline (:errors opts)))
-      (let [inputs (if (:arguments opts)
+      (let [inputs (if-not (empty? (:arguments opts))
                      (-> opts :arguments first slurp (string/split #";;"))
                      (repeatedly get-input))]
         (process-inputs inputs (:options opts))))))

@@ -1,12 +1,7 @@
 (ns feynman.infer
   (:require [clojure.core.match :refer [match]]
             [feynman.dimensions :as dim]
-            [feynman.types :as t]
-            [puget.printer :refer [pprint]]))
-
-(defn transpose
-  [coll]
-  (apply (partial map vector) coll))
+            [feynman.types :as t]))
 
 (defn new-type-var ([] (gensym "alpha__"))
   ([prefix] (gensym (str "alpha_" prefix "__"))))
@@ -17,12 +12,6 @@
     [[:unary-minus-exponent i]] (- (eval-exponent i))
     [[:unary-plus-exponent i]] (eval-exponent i)))
 
-;; Denotable type/unit expressions
-;; TODO:
-;; * What ns does this belong to
-;; * Add error handling
-;; * More generic handling of compound types
-;; * Think about tree traversal, clojure.walk?
 (defn unit-expr-vars
   [expr]
   (match [expr]
@@ -158,7 +147,7 @@
           [_ _ inferred-ret-type] inferred-functype
           [_ declared-ret-type] (eval-type-expr A ret-type)
           s3 (t/unify inferred-ret-type declared-ret-type)]
-      (if (not s3)
+      (if-not s3
         (throw (ex-info "match-rtn"
                         {:inferred inferred-ret-type
                          :declared declared-ret-type
@@ -172,7 +161,7 @@
     [[:def [:name var-name] var-type def-expr]]
     (let [[s inferred-t] (infer A def-expr)
           declared-t (eval-type-expr A var-type)]
-      (if (not= inferred-t declared-t)
+      (if-not (= inferred-t declared-t)
         (throw (ex-info "match-var"
                         {:inferred inferred-t
                          :declared declared-t
@@ -258,12 +247,9 @@
     :else nil))
 
 (defn infer
+  "A wrapper around infer- for debugging purposes"
   [A expr]
-  ; (println "Inferring" (transpile expr))
   (let [[subst t] (infer- A expr)]
-    ; (pprint subst)
-    ; (println "type: " t)
-    ; (println "for:" expr)
     [subst t]))
 
 (defn infer-type

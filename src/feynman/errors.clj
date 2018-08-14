@@ -43,47 +43,38 @@
 
 ;;; Matrix operations for dimensional analysis
 
-; (s/def ::matrix-entry rational?)
-; (s/def ::matrix-row (s/coll-of ::matrix-entry :kind vector?))
-; (s/def ::matrix (s/and (s/coll-of ::matrix-row
-                                  ; :kind vector?)
-                       ; (fn [M]
-                         ; (let [n (count (first M))]
-                           ; (every? #(= n (count %)) M)))))
-
 (defn swap-rows
   "Swap rows a and b of matrix M"
   [M a b]
-  (into [] (for [r (range (count M))]
-             (cond (= r a) (M b)
-                   (= r b) (M a)
-                   :else (M r)))))
+  (vec (for [r (range (count M))]
+         (cond (= r a) (M b)
+               (= r b) (M a)
+               :else (M r)))))
 
 (defn scale-row
   "Divide all values of row r in matrix M by s"
   [M r s]
-  (into [] (for [row (range (count M))]
-             (cond (= row r) (mapv #(/ % s) (nth M row))
-                   :else (nth M row)))))
+  (vec (for [row (range (count M))]
+         (cond (= row r) (mapv #(/ % s) (nth M row))
+               :else (nth M row)))))
 
 (defn subtract-from-all-rows
   "Subtract n times row r in M from all other rows rr, where n is the value of
   the lead column of row rr in M2"
   [M row M2 lead]
-  (into []
-        (for [r (range (count M))]
-          (if (= r row)
-            (M r)
-            (let [rr (M r)
-                  n ((M2 r) lead)
-                  new-row-val (fn [val-in-row val-in-rr]
-                                (- val-in-rr (* n val-in-row)))]
-              (mapv new-row-val (M row) rr))))))
+  (vec (for [r (range (count M))]
+         (if (= r row)
+           (M r)
+           (let [rr (M r)
+                 n ((M2 r) lead)
+                 new-row-val (fn [val-in-row val-in-rr]
+                               (- val-in-rr (* n val-in-row)))]
+             (mapv new-row-val (M row) rr))))))
 
 (defn identity-matrix [size]
-  (into [] (for [n (range size)]
-             (into [] (for [nc (range size)]
-                        (if (= n nc) 1 0))))))
+  (vec (for [n (range size)]
+         (vec (for [nc (range size)]
+                (if (= n nc) 1 0))))))
 
 (defn first-nonzero-row
   "Find index of first row (starting from r) with nonzero entry in lead column"
@@ -149,7 +140,8 @@
                   multiplier (* max-den is-neg?)]
               (recur [(next M) (next I)]
                      (conj result
-                           (create-vec (map vector (keys data) (map #(* % multiplier) rowi))))))))))))
+                           (create-vec (map vector (keys data)
+                                            (map #(* % multiplier) rowi))))))))))))
 
 (defn dimensional-analysis
   [data]
@@ -197,7 +189,7 @@
    \newline
    ["Failed to match type of function arguments:"
     (format "\t%s" (pp-type (:func-type data)))
-    "given type:"
+    "given argument type:"
     (format "\t%s" (pp-type (:args-type data)))]))
 
 (def messages
