@@ -1,7 +1,6 @@
 (ns feynman.dimensions-test
   (:require [clojure.test :refer :all]
-            [feynman.dimensions :refer :all]
-            [feynman.state :as state]))
+            [feynman.dimensions :refer :all]))
 
 (deftest dim-seq-ops
   (testing "create-vec"

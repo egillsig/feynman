@@ -29,6 +29,8 @@
    :func-def transform-funcdef
    :if (fn [& args] `(if ~@args))
    :function (fn [args expr] `(fn ~args ~expr))
-   :let transform-let})
+   :let transform-let
+   :unary_minus_expr (fn [e] `(- ~e))
+   :unary_plus_expr identity})
 
 (def transpile (partial insta/transform transform-map))

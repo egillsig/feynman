@@ -93,6 +93,16 @@
   [A expr]
   (reduce arg-fn [A [:product]] (rest expr)))
 
+(defn build-args-map
+  "Construct a map from arg names to types, used for dimensional analysis"
+  [A expr]
+  (let [name-type (fn [arg]
+                    (match [arg]
+                      [[:arg [:name arg-name]]] [arg-name nil]
+                      [[:arg [:name arg-name] type-expr]]
+                      [arg-name (second (eval-type-expr (:types A) type-expr))]))]
+    (into {} (map name-type (rest expr)))))
+
 (declare infer)
 
 (defn infer-bool
@@ -139,18 +149,24 @@
      (assoc A func-name (new-type-var))
      [:function arg-list def-expr])
     [[:func-def [:name func-name] arg-list ret-type def-expr]]
-    (let [[s inferred-functype] (infer-function
-                                 (assoc A func-name (new-type-var)) ;FIXME: the pre-guessed type of func is never unified with inferred type
+    (let [guessed-functype (new-type-var)
+          [s inferred-functype] (infer-function
+                                 (assoc A func-name guessed-functype)
                                  [:function arg-list def-expr])
+          s2 (t/unify (t/apply-substitution s guessed-functype) inferred-functype)
+          inferred-functype (t/apply-substitution (merge s s2) inferred-functype)
           [_ _ inferred-ret-type] inferred-functype
-          [_ declared-ret-type] (eval-type-expr A ret-type)]
-      (if (not (t/unify inferred-ret-type declared-ret-type))
+          [_ declared-ret-type] (eval-type-expr A ret-type)
+          s3 (t/unify inferred-ret-type declared-ret-type)]
+      (if (not s3)
         (throw (ex-info "match-rtn"
                         {:inferred inferred-ret-type
                          :declared declared-ret-type
+                         :args (build-args-map A arg-list)
+                         :name func-name
                          :expr expr
                          :env A}))
-        [s inferred-functype]))
+        [(merge s s2 s3) inferred-functype]))
 
     [[:def [:name var-name] def-expr]] (infer A def-expr)
     [[:def [:name var-name] var-type def-expr]]
@@ -192,8 +208,6 @@
             [s3 tau3] (infer (t/apply-substitution (merge s1 s2) A) if-else)
             tau2 (t/apply-substitution s3 tau2)
             s4 (t/unify tau2 tau3)]
-        (println "If type: " tau2)
-        (println "Else type: " tau3)
         (if s4
           [(merge s1 s2 s3 s4) (t/apply-substitution s4 tau3)]
           (throw (ex-info "match-if-else"
@@ -247,9 +261,9 @@
   [A expr]
   ; (println "Inferring" (transpile expr))
   (let [[subst t] (infer- A expr)]
-    (pprint subst)
-    (println "type: " t)
-    (println "for:" expr)
+    ; (pprint subst)
+    ; (println "type: " t)
+    ; (println "for:" expr)
     [subst t]))
 
 (defn infer-type
