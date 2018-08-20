@@ -1,7 +1,3 @@
-(* Possible additions:
-   * literals for tuples, lists, vectors ...
-   * type definitions and type classes *)
-
 <program>        : statement (<';;'> statement)* <';;'>?
 
 <statement>      : <'def'> definition | tl-expression | unit-def
@@ -50,7 +46,6 @@ let              : <'let'> definition <'in'> tl-expression
 <expr>           : a-expr | logic
 logic            : a-expr logic-op a-expr
 
-(* TODO: and/or precedence and nested logic statements *)
 logic-op         : '<' | '>' | '<=' | '>=' | '==' | '!='
 
 <a-expr>         : m_expr | add | subtract

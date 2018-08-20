@@ -101,7 +101,6 @@
   [_ expr]
   (if (zero? (second expr))
     [{}
-     ;; Should this be instantiated or type scheme?
      (t/instantiate
       [:forall #{'d__1} [:dimension {'d__1 1}]])]
     [{} [:dimension {}]]))
